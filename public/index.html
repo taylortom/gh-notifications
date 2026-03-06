@@ -277,7 +277,14 @@
 <script>
 const $ = id => document.getElementById(id)
 
-const token = new URLSearchParams(window.location.search).get('token') || ''
+const urlToken = new URLSearchParams(window.location.search).get('token')
+if (urlToken) {
+  localStorage.setItem('api_token', urlToken)
+  const url = new URL(window.location)
+  url.searchParams.delete('token')
+  history.replaceState(null, '', url.pathname + url.search + url.hash)
+}
+const token = urlToken || localStorage.getItem('api_token') || ''
 let refreshTimer = null
 let sortAsc = false
 let lastItems = []
