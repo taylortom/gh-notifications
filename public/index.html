@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitHub Notifications</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --purple: #bc8cff;
+    --orange: #d29922;
+    --red: #f85149;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  select, button {
+    font-family: inherit;
+    font-size: 14px;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    outline: none;
+  }
+
+  select:focus { border-color: var(--accent); }
+
+  button {
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-weight: 500;
+    padding: 6px 16px;
+  }
+
+  button:hover { opacity: 0.9; }
+
+  button.secondary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .status-bar {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .status-bar .label { color: var(--text-muted); }
+  .status-bar .value { color: var(--text); font-weight: 500; }
+  .status-bar .ok { color: var(--green); }
+  .status-bar .warn { color: var(--orange); }
+
+  .filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .filters select { min-width: 140px; }
+
+  .count {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+
+  .notification-list { display: flex; flex-direction: column; gap: 1px; }
+
+  .notification {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: start;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 4px;
+  }
+
+  .notification:hover { border-color: var(--accent); }
+
+  .type-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .type-icon.PullRequest { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .type-icon.Issue { background: rgba(63,185,80,0.15); color: var(--green); }
+  .type-icon.CheckSuite { background: rgba(210,153,34,0.15); color: var(--orange); }
+  .type-icon.Commit { background: rgba(139,148,158,0.15); color: var(--text-muted); }
+  .type-icon.default { background: rgba(88,166,255,0.15); color: var(--accent); }
+
+  .notif-body { min-width: 0; }
+
+  .notif-title {
+    font-weight: 500;
+    font-size: 14px;
+    word-break: break-word;
+  }
+
+  .notif-title a {
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .notif-title a:hover { color: var(--accent); text-decoration: underline; }
+
+  .notif-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 1px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+    background: rgba(139,148,158,0.15);
+    color: var(--text-muted);
+  }
+
+  .badge.reason-review_requested { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .badge.reason-mention { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge.reason-assign { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge.reason-ci_activity { background: rgba(210,153,34,0.15); color: var(--orange); }
+
+  .notif-time {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    padding-top: 2px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 16px;
+    color: var(--text-muted);
+  }
+
+  .empty-state .big { font-size: 36px; margin-bottom: 8px; }
+  .empty-state p { font-size: 14px; }
+
+  .error-banner {
+    padding: 12px 16px;
+    background: rgba(248,81,73,0.1);
+    border: 1px solid var(--red);
+    border-radius: 8px;
+    color: var(--red);
+    font-size: 14px;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 600px) {
+    .notification { grid-template-columns: auto 1fr; }
+    .notif-time { grid-column: 2; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 16a2 2 0 0 0 1.985-1.75c.017-.137-.097-.25-.235-.25h-3.5c-.138 0-.252.113-.235.25A2 2 0 0 0 8 16ZM8 1.5A3.5 3.5 0 0 0 4.5 5v2.947c0 .05-.015.098-.042.139l-1.687 2.953A1 1 0 0 0 3.64 12.5h8.72a1 1 0 0 0 .868-1.461l-1.687-2.953a.25.25 0 0 1-.042-.139V5A3.5 3.5 0 0 0 8 1.5Z"/></svg>
+      Notifications
+    </h1>
+  </header>
+
+  <div id="status-bar" class="status-bar" style="display:none">
+    <span><span class="label">Status </span><span class="value" id="s-status"></span></span>
+    <span><span class="label">Uptime </span><span class="value" id="s-uptime"></span></span>
+    <span><span class="label">Last poll </span><span class="value" id="s-poll"></span></span>
+    <span><span class="label">Total </span><span class="value" id="s-count"></span></span>
+    <span><span class="label">Rate limit </span><span class="value" id="s-rate"></span></span>
+  </div>
+
+  <div id="error" class="error-banner"></div>
+
+  <div id="filters-bar" class="filters" style="display:none">
+    <select id="f-reason" onchange="fetchNotifications()">
+      <option value="">All reasons</option>
+    </select>
+    <select id="f-repo" onchange="fetchNotifications()">
+      <option value="">All repos</option>
+    </select>
+    <select id="f-type" onchange="fetchNotifications()">
+      <option value="">All types</option>
+    </select>
+    <button class="secondary" onclick="fetchNotifications()">Refresh</button>
+    <label style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+      <input type="checkbox" id="include-closed" onchange="fetchNotifications()"> Closed
+    </label>
+    <label style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+      <input type="checkbox" id="auto-refresh" checked> Auto
+    </label>
+    <button class="secondary" id="sort-btn" onclick="toggleSort()" style="font-size:12px;padding:4px 10px">Oldest first</button>
+    <span class="count" id="shown-count"></span>
+  </div>
+
+  <div id="list" class="notification-list"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id)
+
+const token = new URLSearchParams(window.location.search).get('token') || ''
+let refreshTimer = null
+let sortAsc = false
+let lastItems = []
+const REFRESH_MS = 30_000
+
+function load () {
+  hideError()
+  fetchHealth()
+  fetchNotifications()
+  clearInterval(refreshTimer)
+  refreshTimer = setInterval(() => {
+    if ($('auto-refresh').checked) {
+      fetchHealth()
+      fetchNotifications()
+    }
+  }, REFRESH_MS)
+}
+
+async function apiFetch (path) {
+  const res = await fetch(path, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.error || `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
+async function fetchHealth () {
+  try {
+    const r = await fetch('/health')
+    const d = await r.json()
+    $('status-bar').style.display = ''
+    $('s-status').textContent = d.status
+    $('s-status').className = 'value ' + (d.status === 'ok' ? 'ok' : 'warn')
+    $('s-uptime').textContent = formatUptime(d.uptime)
+    $('s-poll').textContent = d.lastPoll ? timeAgo(new Date(d.lastPoll)) : 'never'
+    $('s-count').textContent = d.notificationCount
+    $('s-rate').textContent = d.rateLimitRemaining ?? '?'
+    $('s-rate').className = 'value ' + ((d.rateLimitRemaining ?? 999) < 100 ? 'warn' : '')
+  } catch (e) {
+    showError('Health check failed: ' + e.message)
+  }
+}
+
+async function fetchNotifications () {
+  if (!token) return
+  const params = new URLSearchParams()
+  const reason = $('f-reason').value
+  const repo = $('f-repo').value
+  const type = $('f-type').value
+  if (reason) params.set('reason', reason)
+  if (repo) params.set('repo', repo)
+  if (type) params.set('type', type)
+  if ($('include-closed').checked) params.set('includeClosed', '1')
+
+  try {
+    const d = await apiFetch('/notifications?' + params)
+    lastItems = d.notifications
+    renderList(sortItems(lastItems))
+    $('shown-count').textContent = d.count + ' shown'
+    $('filters-bar').style.display = ''
+    updateFilterOptions(d.notifications)
+  } catch (e) {
+    showError('Failed to fetch notifications: ' + e.message)
+  }
+}
+
+const knownReasons = new Set()
+const knownRepos = new Set()
+const knownTypes = new Set()
+
+function updateFilterOptions (items) {
+  let changed = false
+  for (const n of items) {
+    if (!knownReasons.has(n.reason)) { knownReasons.add(n.reason); changed = true }
+    if (!knownRepos.has(n.repository)) { knownRepos.add(n.repository); changed = true }
+    if (!knownTypes.has(n.subject.type)) { knownTypes.add(n.subject.type); changed = true }
+  }
+  if (!changed) return
+  populateSelect($('f-reason'), 'All reasons', knownReasons)
+  populateSelect($('f-repo'), 'All repos', knownRepos)
+  populateSelect($('f-type'), 'All types', knownTypes)
+}
+
+function populateSelect (el, allLabel, set) {
+  const val = el.value
+  const sorted = [...set].sort()
+  el.innerHTML = `<option value="">${allLabel}</option>` +
+    sorted.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('')
+  el.value = val
+}
+
+function renderList (items) {
+  const list = $('list')
+  if (!items.length) {
+    list.innerHTML = `<div class="empty-state"><div class="big">All clear</div><p>No notifications match the current filters.</p></div>`
+    return
+  }
+  list.innerHTML = items.map(n => {
+    const icon = typeIcon(n.subject.type)
+    const link = n.subject.htmlUrl
+      ? `<a href="${esc(n.subject.htmlUrl)}" target="_blank" rel="noopener">${esc(n.subject.title)}</a>`
+      : esc(n.subject.title)
+    return `<div class="notification" id="notif-${esc(n.id)}">
+      <div class="type-icon ${esc(n.subject.type) || 'default'}">${icon}</div>
+      <div class="notif-body">
+        <div class="notif-title">${link}</div>
+        <div class="notif-meta">
+          <span>${esc(n.repository)}</span>
+          <span class="badge reason-${esc(n.reason)}">${esc(n.reason)}</span>
+          ${n.subject.state ? `<span>${esc(n.subject.state)}</span>` : ''}
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="notif-time">${timeAgo(new Date(n.updatedAt))}</div>
+        <button class="secondary mark-read-btn" onclick="markRead('${esc(n.id)}')" style="margin-top:4px;padding:2px 8px;font-size:11px">Mark read</button>
+      </div>
+    </div>`
+  }).join('')
+}
+
+function typeIcon (type) {
+  switch (type) {
+    case 'PullRequest': return 'PR'
+    case 'Issue': return 'I'
+    case 'CheckSuite': return 'CI'
+    case 'Commit': return 'C'
+    default: return '?'
+  }
+}
+
+function timeAgo (date) {
+  const s = Math.floor((Date.now() - date) / 1000)
+  if (s < 60) return 'just now'
+  const m = Math.floor(s / 60)
+  if (m < 60) return m + 'm ago'
+  const h = Math.floor(m / 60)
+  if (h < 24) return h + 'h ago'
+  const d = Math.floor(h / 24)
+  return d + 'd ago'
+}
+
+function formatUptime (secs) {
+  if (secs < 60) return secs + 's'
+  if (secs < 3600) return Math.floor(secs / 60) + 'm'
+  if (secs < 86400) return Math.floor(secs / 3600) + 'h ' + Math.floor((secs % 3600) / 60) + 'm'
+  return Math.floor(secs / 86400) + 'd ' + Math.floor((secs % 86400) / 3600) + 'h'
+}
+
+function esc (s) {
+  if (!s) return ''
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+function sortItems (items) {
+  if (!sortAsc) return items
+  return [...items].reverse()
+}
+
+function toggleSort () {
+  sortAsc = !sortAsc
+  $('sort-btn').textContent = sortAsc ? 'Newest first' : 'Oldest first'
+  renderList(sortItems(lastItems))
+}
+
+async function markRead (id) {
+  const btn = document.querySelector(`#notif-${id} .mark-read-btn`)
+  if (btn) { btn.disabled = true; btn.textContent = '...' }
+  try {
+    const res = await fetch(`/notifications/${id}/read`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `HTTP ${res.status}`)
+    }
+    const el = document.getElementById(`notif-${id}`)
+    if (el) el.remove()
+  } catch (e) {
+    showError('Failed to mark as read: ' + e.message)
+    if (btn) { btn.disabled = false; btn.textContent = 'Mark read' }
+  }
+}
+
+function showError (msg) { const el = $('error'); el.textContent = msg; el.style.display = '' }
+function hideError () { $('error').style.display = 'none' }
+
+if (token) load()
+</script>
+</body>
+</html>
