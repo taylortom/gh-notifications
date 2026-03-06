@@ -105,6 +105,22 @@
 
   .filters select { min-width: 140px; }
 
+  .type-filters {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .type-filters label {
+    font-size: 13px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+
   .count {
     font-size: 13px;
     color: var(--text-muted);
@@ -257,9 +273,7 @@
     <select id="f-repo" onchange="fetchNotifications()">
       <option value="">All repos</option>
     </select>
-    <select id="f-type" onchange="fetchNotifications()">
-      <option value="">All types</option>
-    </select>
+    <span id="type-filters" class="type-filters"></span>
     <button class="secondary" onclick="fetchNotifications()">Refresh</button>
     <label style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
       <input type="checkbox" id="include-closed" onchange="fetchNotifications()"> Closed
@@ -267,7 +281,7 @@
     <label style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
       <input type="checkbox" id="auto-refresh" checked> Auto
     </label>
-    <button class="secondary" id="sort-btn" onclick="toggleSort()" style="font-size:12px;padding:4px 10px">Oldest first</button>
+    <button class="secondary" id="sort-btn" onclick="toggleSort()" style="font-size:12px;padding:4px 10px" title="Toggle sort order">&#9660;</button>
     <span class="count" id="shown-count"></span>
   </div>
 
@@ -336,19 +350,17 @@ async function fetchNotifications () {
   const params = new URLSearchParams()
   const reason = $('f-reason').value
   const repo = $('f-repo').value
-  const type = $('f-type').value
   if (reason) params.set('reason', reason)
   if (repo) params.set('repo', repo)
-  if (type) params.set('type', type)
   if ($('include-closed').checked) params.set('includeClosed', '1')
 
   try {
     const d = await apiFetch('/notifications?' + params)
-    lastItems = d.notifications
-    renderList(sortItems(lastItems))
-    $('shown-count').textContent = d.count + ' shown'
-    $('filters-bar').style.display = ''
     updateFilterOptions(d.notifications)
+    lastItems = filterByType(d.notifications)
+    renderList(sortItems(lastItems))
+    $('shown-count').textContent = lastItems.length + ' shown'
+    $('filters-bar').style.display = ''
   } catch (e) {
     showError('Failed to fetch notifications: ' + e.message)
   }
@@ -368,7 +380,30 @@ function updateFilterOptions (items) {
   if (!changed) return
   populateSelect($('f-reason'), 'All reasons', knownReasons)
   populateSelect($('f-repo'), 'All repos', knownRepos)
-  populateSelect($('f-type'), 'All types', knownTypes)
+  populateTypeCheckboxes()
+}
+
+function populateTypeCheckboxes () {
+  const container = $('type-filters')
+  const sorted = [...knownTypes].sort()
+  container.innerHTML = sorted.map(t => {
+    const checked = !selectedTypes.size || selectedTypes.has(t) ? 'checked' : ''
+    return `<label><input type="checkbox" value="${esc(t)}" ${checked} onchange="onTypeFilterChange()"> ${esc(t)}</label>`
+  }).join('')
+}
+
+let selectedTypes = new Set()
+
+function onTypeFilterChange () {
+  const boxes = $('type-filters').querySelectorAll('input[type=checkbox]')
+  const checked = [...boxes].filter(cb => cb.checked).map(cb => cb.value)
+  selectedTypes = checked.length === boxes.length ? new Set() : new Set(checked)
+  fetchNotifications()
+}
+
+function filterByType (items) {
+  if (!selectedTypes.size) return items
+  return items.filter(n => selectedTypes.has(n.subject.type))
 }
 
 function populateSelect (el, allLabel, set) {
@@ -448,7 +483,8 @@ function sortItems (items) {
 
 function toggleSort () {
   sortAsc = !sortAsc
-  $('sort-btn').textContent = sortAsc ? 'Newest first' : 'Oldest first'
+  $('sort-btn').innerHTML = sortAsc ? '&#9650;' : '&#9660;'
+  $('sort-btn').title = sortAsc ? 'Showing oldest first' : 'Showing newest first'
   renderList(sortItems(lastItems))
 }
 
