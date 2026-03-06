@@ -437,7 +437,7 @@ function renderList (items) {
       </div>
       <div style="text-align:right">
         <div class="notif-time">${timeAgo(new Date(n.updatedAt))}</div>
-        <button class="secondary mark-read-btn" onclick="markRead('${esc(n.id)}')" style="margin-top:4px;padding:2px 8px;font-size:11px">Mark read</button>
+        <button class="secondary mark-read-btn" onclick="markRead('${esc(n.id)}')" style="margin-top:4px;padding:2px 8px;font-size:14px;line-height:1" title="Mark as read">&#10003;</button>
       </div>
     </div>`
   }).join('')
@@ -504,7 +504,7 @@ async function markRead (id) {
     if (el) el.remove()
   } catch (e) {
     showError('Failed to mark as read: ' + e.message)
-    if (btn) { btn.disabled = false; btn.textContent = 'Mark read' }
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#10003;' }
   }
 }
 
