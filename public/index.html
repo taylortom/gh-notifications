@@ -432,7 +432,7 @@ function renderList (items) {
         <div class="notif-meta">
           <span>${esc(n.repository)}</span>
           <span class="badge reason-${esc(n.reason)}">${esc(n.reason)}</span>
-          ${n.subject.state ? `<span>${esc(n.subject.state)}</span>` : ''}
+          ${n.subject.state && n.subject.state !== 'unknown' ? `<span>${esc(n.subject.state)}</span>` : ''}
         </div>
       </div>
       <div style="text-align:right">
